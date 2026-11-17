@@ -1,3 +1,9 @@
+> **Open source:** GNU GPL-3.0-only (kod źródłowy). Zobacz [LICENSE](LICENSE), [prawa i wkład AI](AI_ASSISTED_DEVELOPMENT.md) oraz [licencje komponentów](THIRD_PARTY_COMPONENTS.md).
+>
+> **Zrzut ekranu:** [podgląd aplikacji](docs/screenshots/weldvision-ai-3.2.jpg) — właściciel wyraził zgodę na publikację; fotografia i zrzut nie są objęte GPL kodu.
+>
+> **Bezpieczeństwo:** [przegląd przed publikacją](RELEASE_SECURITY_REVIEW_2026-11-17.md).
+
 # WeldVision AI 3.2 — pomiary grubości i przekrojów spoin
 
 **Kalibracja i pomiary liniowe (10 listopada 2026)**
