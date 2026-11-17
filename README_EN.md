@@ -2,6 +2,8 @@
 >
 > **Screenshot:** [WeldVision 3.2 in action](docs/screenshots/weldvision-ai-3.2.jpg); published with the image owner's permission, not licensed under the source-code GPL.
 
+![WeldVision AI 3.2 UI — calibrated weld measurement and SAM Huge GPU segmentation](docs/screenshots/weldvision-ai-3.2.jpg)
+
 # WeldVision AI 3.2 — Research Software Overview
 
 WeldVision AI is an experimental Windows desktop application for the analysis of weld macrographs, developed for research workflows.
