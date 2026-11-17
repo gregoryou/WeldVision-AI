@@ -1,3 +1,21 @@
+# WeldVision AI 3.2 — analiza makrograficzna złączy spawanych
+
+**WeldVision AI** to otwartoźródłowy program na Windows do analizy fotografii makrograficznych spoin. Łączy **kalibrację obrazu i pomiary geometryczne** z opcjonalnym wspomaganiem segmentacji przez sztuczną inteligencję. Służy do pracy badawczej, dokumentowania zgładów spoin i porównywania próbek.
+
+## Co robi program?
+
+- **Organizuje zdjęcia zgładów:** importuje wiele fotografii do projektu, pozwala przełączać próbki i zapisywać postępy pracy.
+- **Kalibruje skalę:** przelicza piksele na milimetry na podstawie dwóch wskazanych punktów i znanego wymiaru (np. 10 mm).
+- **Mierzy geometrię spoin pachwinowych:** umożliwia pomiar grubości spoiny `a`, grubości blach `t₁` i `t₂` oraz dowolnych odcinków, z oznaczeniem wyników na obrazie.
+- **Wydziela obszar spoiny:** wykorzystuje OpenCV GrabCut lub modele **Segment Anything (SAM)**, opcjonalnie na NVIDIA CUDA; pozwala wskazać ROI oraz punkty pierwszego planu i tła.
+- **Pozwala poprawić i zatwierdzić maskę:** oferuje ręczną edycję, cofanie zmian i weryfikację rezultatów AI.
+- **Oblicza pole przekroju i szacuje masę materiału na 1 m:** na podstawie maski, kalibracji i zadanej gęstości; to nie jest bezpośredni pomiar zużycia drutu.
+- **Eksportuje wyniki:** zapisuje projekty `.weldproj`, zdjęcia z wymiarami, maski i pliki CSV.
+
+**Typowy przebieg:** załaduj fotografię → skalibruj obraz → wskaż ROI i wykonaj segmentację (lub pomiary bez AI) → popraw i zatwierdź wynik → zapisz projekt → wyeksportuj dane.
+
+> **Ograniczenia:** to oprogramowanie badawcze, a nie certyfikowany system metrologiczny ani automatyczne narzędzie do oceny zgodności spoin z normami. Dokładność zależy od kalibracji, jakości fotografii i decyzji operatora. Wyniki AI wymagają sprawdzenia.
+
 > **Open source:** GNU GPL-3.0-only (kod źródłowy). Zobacz [LICENSE](LICENSE), [prawa i wkład AI](AI_ASSISTED_DEVELOPMENT.md) oraz [licencje komponentów](THIRD_PARTY_COMPONENTS.md).
 >
 > **Zrzut ekranu:** [podgląd aplikacji](docs/screenshots/weldvision-ai-3.2.jpg) — właściciel wyraził zgodę na publikację; fotografia i zrzut nie są objęte GPL kodu.
@@ -6,9 +24,7 @@
 
 ![Interfejs WeldVision AI 3.2 — pomiary spoiny, maska i analiza SAM Huge na GPU](docs/screenshots/weldvision-ai-3.2.jpg)
 
-# WeldVision AI 3.2 — pomiary grubości i przekrojów spoin
-
-**Kalibracja i pomiary liniowe (10 listopada 2026)**
+**Szczegóły kalibracji i pomiarów liniowych (wersja 3.2)**
 
 ## Nowe pomiary po kalibracji
 
@@ -24,7 +40,6 @@ Zapis projektu `.weldproj` obejmuje punkty pomiarowe. Eksport zawiera dodatkowo 
 
 Jeśli wersja 3.1 już działa, rozpakuj tę paczkę do nowego folderu i uruchom **Start_WeldVision_AI.bat**. Wspólne środowisko aplikacji może być użyte ponownie; dodane pomiary nie wymagają nowych bibliotek.
 
-Aplikacja z polskim interfejsem do analizy zdjęć makroskopowych spoin, kalibracji skali, pomiaru pola przekroju i oszacowania masy materiału przekroju na 1 m. Obsługuje wiele zdjęć w jednym projekcie, ręczną korektę masek, GrabCut bez AI oraz Segment Anything (SAM) na NVIDIA CUDA lub CPU.
 
 ## Instalacja — Windows 11
 
