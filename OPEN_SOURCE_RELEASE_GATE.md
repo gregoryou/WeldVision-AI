@@ -1,24 +1,26 @@
-# WeldVision AI 3.2 - Open-source release gate (2026-11-17)
+# WeldVision AI 3.2 — Open-source source-release review (2026-11-17)
 
-**Status: source release prepared for publication after rights confirmation and testing.** Source license and AI disclosure have been staged; the owner authorized publication of code and one redacted screenshot on 2026-11-17. The repository was private during review. Read the latest security review before opening external project archives.
+**Decision:** Source-only publication under GPL-3.0-only is authorized by the project maintainer. The GitHub screenshot is to be uploaded separately with path redaction before changing repository visibility. No research dataset or standalone executable is included.
 
-## Verified
-- Source snapshot: WeldVision AI 3.2, calibration and measurements, provided by owner.
-- Python 3.13.5 compileall: PASS.
-- pytest on Linux: **22 passed, 3 skipped** (2 PyQt6-related, 1 optional real-image test).
-- Connected GitHub metadata verifies the repository is private.
-- The source snapshot has no included research photos, project .weldproj files, or model weights; a heuristic token scan found no obvious literal secrets. These checks do not prove the absence of sensitive data.
+## Reviewed evidence
 
-## Blockers before changing repository visibility
-1. Owner confirms original code and all third-party contributions may be redistributed, considering any course or university project rights.
-2. Choose a compatible license; PyQt6 community edition is GPLv3 or commercial, so **GPL-3.0-only is proposed, NOT yet granted**.
-3. Run Windows 11 PyQt6 GUI tests, manual calibration/geometric acceptance and real CUDA/SAM smoke tests on the user's computer.
-4. Review untrusted ZIP/images, dependency vulnerabilities, CSV export formula injection, Git history and installer provenance.
-5. Add genuine synthetic examples only, attribution and the full approved LICENSE text. Never commit unpublished research data.
+- Maintainer confirmed: original research-software idea, functional requirements and hands-on scientific testing; coding assistance by ChatGPT/AI; no knowingly copied third-party/university-owned program code.
+- Formal rights guarantee: **not independently verified**. See [AI_ASSISTED_DEVELOPMENT.md](AI_ASSISTED_DEVELOPMENT.md).
+- Full text of **GNU GPL version 3, no later-version option** is provided in [LICENSE](LICENSE), compatible with the community edition of PyQt6 used in the app.
+- Third-party dependencies are installed separately and keep their own licenses. No SAM weights are redistributed. See [THIRD_PARTY_COMPONENTS.md](THIRD_PARTY_COMPONENTS.md).
+- Owner-supplied Windows 11 report: **26 passed, 1 skipped**, PyQt6 and CUDA detected. Owner confirmed GUI/macrograph measurements and SAM Huge CUDA in actual use. These are user-provided results, not independently observed remote execution.
+- Linux offline regressions after CSV formula-injection fix: **25 passed, 3 skipped** (Qt unavailable, original research photos absent).
+- Automated GitHub Actions perform a core Linux test suite and Windows PyQt6 GUI tests.
+- Security and supply chain risks are disclosed in [RELEASE_SECURITY_REVIEW_2026-11-17.md](RELEASE_SECURITY_REVIEW_2026-11-17.md). In particular, do not load untrusted project archives without adequate resources.
 
-## Scope of this branch
-Documentation and release preparation only. Do not change weld geometry, segmentation, calculations, research results or underlying application logic.
+## Publication scope
 
-References: https://www.riverbankcomputing.com/software/ ; https://doc.qt.io/qtforpython-6/ ; https://huggingface.co/facebook/sam-vit-base ; https://huggingface.co/facebook/sam-vit-large ; https://huggingface.co/facebook/sam-vit-huge
+**Public:** Python source code, installers/scripts, tests, GPL license, AI contribution disclosure, dependency notices, one owner-approved screenshot with local user paths redacted.
 
-Release requires explicit owner approval of exact files, license and commit.
+**Not published:** original source research photos, raw measurements, project archives, credentials, model weight files, confidential laboratory materials.
+
+The screenshot is included under its owner's express permission for this repository and is **not automatically GPL-licensed**.
+
+## Limitations
+
+This checklist supports a reasonable initial source-only release. It does **not** guarantee compliance with every jurisdiction's intellectual-property law, certify metrological accuracy, or constitute an external security penetration test or legal opinion. Future packaged binaries require a separate license and redistribution audit.
