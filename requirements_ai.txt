@@ -1,0 +1,4 @@
+# Po instalacji właściwego PyTorch CUDA (Install_AI_NVIDIA_CUDA.bat)
+transformers>=4.45,<6
+safetensors>=0.4
+huggingface-hub>=0.25,<2
