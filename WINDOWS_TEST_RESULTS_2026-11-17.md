@@ -24,3 +24,9 @@
 **Release decision: NO-GO for public visibility at this stage.**
 
 See [WINDOWS_RELEASE_VERIFICATION.md](WINDOWS_RELEASE_VERIFICATION.md) and [OPEN_SOURCE_RELEASE_GATE.md](OPEN_SOURCE_RELEASE_GATE.md).
+
+## Manual acceptance — owner confirmation (2026-11-17)
+
+The project owner reported in chat that **all previously requested manual checks work** after performing the suggested checklist: image calibration, weld/thickness measurements, saving and reopening a test project, and SAM processing on CUDA. This is an **owner-reported PASS**, not an independently witnessed or instrumented run; screenshots, model ID, logs and test data were not provided. Independent reproduction remains a recommended release-quality improvement.
+
+**Publication remains on hold pending documented ownership/third-party rights, final GPL-3.0 licensing decision, and security review.** No public-release approval has been granted.
