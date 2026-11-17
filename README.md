@@ -4,6 +4,8 @@
 >
 > **Bezpieczeństwo:** [przegląd przed publikacją](RELEASE_SECURITY_REVIEW_2026-11-17.md).
 
+![Interfejs WeldVision AI 3.2 — pomiary spoiny, maska i analiza SAM Huge na GPU](docs/screenshots/weldvision-ai-3.2.jpg)
+
 # WeldVision AI 3.2 — pomiary grubości i przekrojów spoin
 
 **Kalibracja i pomiary liniowe (10 listopada 2026)**
