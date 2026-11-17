@@ -63,3 +63,6 @@ results/
 recovery/
 cache/
 output/
+
+# Explicitly approved demo screenshot (other research images stay ignored)
+!docs/screenshots/weldvision-ai-3.2.jpg

@@ -1,3 +1,7 @@
+> **Open source:** original application source is licensed under GNU GPL-3.0-only. See [LICENSE](LICENSE), [AI-assisted development](AI_ASSISTED_DEVELOPMENT.md), and [third-party licensing](THIRD_PARTY_COMPONENTS.md).
+>
+> **Screenshot:** [WeldVision 3.2 in action](docs/screenshots/weldvision-ai-3.2.jpg); published with the image owner's permission, not licensed under the source-code GPL.
+
 # WeldVision AI 3.2 — Research Software Overview
 
 WeldVision AI is an experimental Windows desktop application for the analysis of weld macrographs, developed for research workflows.
