@@ -4,11 +4,25 @@
 
 ![WeldVision AI 3.2 UI — calibrated weld measurement and SAM Huge GPU segmentation](docs/screenshots/weldvision-ai-3.2.jpg)
 
-# WeldVision AI 3.2 — Research Software Overview
+# WeldVision AI 3.2 — Weld Macrograph Analysis and Measurement
 
-WeldVision AI is an experimental Windows desktop application for the analysis of weld macrographs, developed for research workflows.
+**WeldVision AI** is an open-source Windows desktop application for analyzing macrographs of welded joints. It combines **image calibration and geometric measurements** with optional AI-assisted image segmentation for research and laboratory documentation.
 
-## Current functionality
+## What does it do?
+
+- **Manage weld macrographs:** import multiple images, organize samples and save ongoing work.
+- **Calibrate image scale:** convert pixels to millimetres using two reference points and a known distance (e.g., 10 mm).
+- **Measure fillet weld geometry:** mark weld throat `a`, plate thickness `t1`/`t2` and arbitrary distances directly on images.
+- **Segment weld regions:** use OpenCV GrabCut or Segment Anything (SAM), optionally accelerated with NVIDIA CUDA; adjust ROI and foreground/background prompts.
+- **Review and edit masks:** manually correct segmentation and approve results.
+- **Calculate cross-sectional area and estimate material mass per metre:** based on mask area, calibration and user-defined density; not direct filler-wire consumption.
+- **Save and export:** `.weldproj` projects, annotated/mask images and CSV measurement tables.
+
+**Typical workflow:** import macrograph → calibrate → define ROI and segment or measure manually → review → approve → save/export.
+
+> **Research limitation:** This is not a certified metrology system or an automated weld-acceptance evaluator. Results depend on image quality, calibration and operator judgement; AI outputs must be verified.
+
+## Further functionality and installation
 
 - Import and organize multiple macrograph images in one project.
 - Calibrate pixel scale with two reference points and a known distance.
@@ -29,6 +43,6 @@ This is **research software**, not an independently certified metrology system. 
 
 The repository intentionally does **not** contain laboratory photographs, patient/personal data, confidential reports, trained model weights, or `.weldproj` research projects. Avoid committing such files. The models referenced by code are obtained separately from their respective publishers.
 
-## License status
+## License and development provenance
 
-The author has not yet selected a public open-source license. Until a license is formally added by the authorized rightsholder, **all rights are reserved**. Publishing this source code as open source requires a separate license and provenance review.
+The original application source is licensed under **GNU GPL-3.0-only**; see [LICENSE](LICENSE). Dependencies and model weights retain their own licenses. See [third-party components](THIRD_PARTY_COMPONENTS.md) and [AI-assisted development](AI_ASSISTED_DEVELOPMENT.md). The concept, functional requirements and real-world testing were directed by the human maintainer; AI tools assisted with software development.
