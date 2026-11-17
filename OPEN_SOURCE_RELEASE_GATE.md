@@ -1,6 +1,6 @@
 # WeldVision AI 3.2 - Open-source release gate (2026-11-17)
 
-**Status: PRIVATE / NO-GO for public release.** This staging branch does not authorize publication.
+**Status: source release prepared for publication after rights confirmation and testing.** Source license and AI disclosure have been staged; the owner authorized publication of code and one redacted screenshot on 2026-11-17. The repository was private during review. Read the latest security review before opening external project archives.
 
 ## Verified
 - Source snapshot: WeldVision AI 3.2, calibration and measurements, provided by owner.
