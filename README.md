@@ -1,4 +1,4 @@
-# WeldVision AI 3.5.0
+# WeldVision AI 3.5.1
 
 ## Autor i kontakt
 
@@ -52,3 +52,7 @@ Wybierz **Wstaw komentarz** i kliknij miejsce podpisu na zdjęciu, aby wpisać t
 ## Testy
 
 W środowisku z wymaganymi pakietami uruchom `python -m pytest -q -ra`. Instrukcja angielska opisuje instalację w środowisku wirtualnym.
+
+## Aktualizacja 3.5.1
+
+Eksport CSV zabezpiecza pola tekstowe mogące zostać zinterpretowane przez Excel jako formuły, bez zmiany wartości liczbowych i danych projektu. Poprawiono zależności Linux CI dla PyQt6. Zobacz [opis poprawek 3.5.1](RELEASE_NOTES_3_5_1.md).

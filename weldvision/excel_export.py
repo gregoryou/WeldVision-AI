@@ -104,7 +104,7 @@ def export_xlsx(path, samples, fields):
                 r.value if r.unit == '°' else None
             ])
     info_rows=[[tr('Metadane'),tr('Wartość')],
-               [tr('Wersja'),'WeldVision AI 3.5.0'],
+               [tr('Wersja'),'WeldVision AI 3.5.1'],
                [tr('Utworzono UTC'),datetime.now(timezone.utc).isoformat(timespec='seconds')],
                [tr('Definicja a'),tr('Największy równoramienny trójkąt wpisany w ręcznie wyznaczony kontur spoiny; ISO 2553:2019')],
                [tr('Dokładność a'),tr('Przybliżenie zależne od gęstości punktów konturu, wskazania powierzchni i brzegów. Promień odrzuconego pomiaru pozostaje w kolumnie r.')],
