@@ -310,12 +310,27 @@ FIELDS = ["id", "probka", "zdjecie", "status", "metoda", "model", "piksele", "sk
           "kalibracja_mm", "data_analizy", "data_zatwierdzenia", "komentarz"]
 
 
+def csv_safe_text(value):
+    """Neutralize spreadsheet formulas in CSV text fields, preserving numbers.
+
+    Leading apostrophe forces Excel/Calc to import an untrusted value as text.
+    The original sample name and project contents are never modified.
+    """
+    if isinstance(value, str) and re.match(r"^\s*[=+\-@]", value):
+        return "'" + value
+    return value
+
+
+def _csv_safe_row(row):
+    return {key: csv_safe_text(value) for key, value in row.items()}
+
+
 def csv_content(project):
     buf = io.StringIO()
     w = csv.DictWriter(buf, fieldnames=FIELDS, delimiter=';', extrasaction='ignore')
     w.writeheader()
     for sample in project.samples:
-        w.writerow(sample.summary())
+        w.writerow(_csv_safe_row(sample.summary()))
     return buf.getvalue().encode('utf-8-sig')
 
 
@@ -536,7 +551,8 @@ def measurements_csv(samples):
                 value = measurement_mm(item, sample.mm_per_px, sample.calibration_matrix())
             except ValueError:
                 value = None
-            writer.writerow([sample.uid, sample.name, index+1, item['kind'],
+            writer.writerow([csv_safe_text(sample.uid), csv_safe_text(sample.name), index+1,
+                             csv_safe_text(item['kind']),
                              value, sample.mm_per_px,
                              json.dumps(item['points'], ensure_ascii=False),
                              ('siatka_2d' if len(sample.cal_points) == 3 else 'odcinek_1d'),
@@ -576,7 +592,7 @@ def export_results(project, destination, current_only=None):
         image_write(out / f'{stem}_wynik.png', render_overlay(img, sample.mask(), sample.mm_per_px,
                     sample.density, sample.name, measurements=sample.measurements,
                     calibration_matrix=sample.calibration_matrix()))
-        writer.writerow(sample.summary())
+        writer.writerow(_csv_safe_row(sample.summary()))
     (out / 'wyniki_zbiorcze.csv').write_bytes(buffer.getvalue().encode('utf-8-sig'))
     (out / 'pomiary_liniowe.csv').write_bytes(measurements_csv(samples))
     from .excel_export import export_xlsx

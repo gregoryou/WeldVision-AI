@@ -573,7 +573,7 @@ class MainWindow(QMainWindow):
         panel = QWidget()
         self.about_tab = panel
         layout = QVBoxLayout(panel)
-        title = QLabel('WeldVision AI 3.5.0')
+        title = QLabel('WeldVision AI 3.5.1')
         title.setStyleSheet('font-size:20px; font-weight:600;')
         layout.addWidget(title)
         description = QLabel(tr('Pomiary przekrojów i gardzieli spoin na zdjęciach makroskopowych. Segmentacja SAM i ręczna korekta maski. Projekty .weldproj.'))
@@ -1242,7 +1242,7 @@ class MainWindow(QMainWindow):
     def _update_status(self):
         name=Path(self.project.path).name if self.project.path else tr('Nowy projekt')
         star=f' • {tr('niezapisane zmiany')}' if self.project.dirty else ''
-        self.setWindowTitle(f'WeldVision AI 3.5.0 — {name}{star}')
+        self.setWindowTitle(f'WeldVision AI 3.5.1 — {name}{star}')
         self.status_label.setText(tr('{} próbek · {}').format(f'{len(self.project.samples)}', tr('niezapisane zmiany' if self.project.dirty else 'zapisane')))
         self.action_save.setEnabled(bool(self.project.samples))
 

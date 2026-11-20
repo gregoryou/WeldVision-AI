@@ -1,4 +1,4 @@
-# WeldVision AI 3.5.0
+# WeldVision AI 3.5.1
 
 ## Author and contact
 
@@ -58,3 +58,7 @@ $env:QT_QPA_PLATFORM = 'offscreen'
 ```
 
 Tests cover calibration, measurement geometry, annotations, project persistence, image exports, and the SAM request and mask-review workflow. Tests can validate the workflow with a deterministic mask without downloading a model checkpoint.
+
+## Update 3.5.1
+
+CSV export now protects formula-like text cells without changing numeric results or project data. Linux CI includes the missing PyQt6 runtime dependencies. See the [3.5.1 release notes](RELEASE_NOTES_3_5_1.md).
