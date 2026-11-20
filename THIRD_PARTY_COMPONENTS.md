@@ -1,22 +1,16 @@
-# Third-party component licenses (source-code release)
+# Third-party components — source-code release
 
-The distribution is of the **WeldVision AI source code**, not pre-installed wheels, proprietary weight files, or a standalone executable. The repository's original source code is licensed under **GPL-3.0-only**; the following items keep their separate terms.
+The distribution contains Python source code, not bundled package wheels or SAM model checkpoints. The application source is released under GPL-3.0-only, as in the existing GitHub repository.
 
-| Component | License indicated by source/vendor | Notes |
-| --- | --- | --- |
-| PyQt6 | GPL-3.0-only community edition, or separate commercial option | GPL-3.0-only chosen for this project's original code |
-| Qt libraries | Qt licenses as bundled with the installed PyQt6-Qt6 package | Binary redistribution requires confirming Qt notices and licenses |
-| opencv-python | Apache-2.0 | Installed separately |
-| NumPy | BSD-3-Clause / MIT / additional permissive notices | Installed separately |
-| Pillow | MIT-CMU | Installed separately |
-| PyTorch, torchvision, Transformers, safetensors, huggingface-hub | Separate upstream package licenses | Installed separately; do not assume every transitive license matches |
-| facebook/sam-vit-base, large, huge | Apache-2.0 per Hugging Face model repositories | Model weights fetched separately; not included |
+| Component | License / consideration |
+| --- | --- |
+| PyQt6 | GPL-3.0 community edition or separately purchased commercial license; maintain the GPL-compatible combination |
+| Qt runtime libraries | Separate Qt notice/redistribution obligations apply to packaged binaries |
+| OpenCV (`opencv-python`) | Apache-2.0 |
+| NumPy | BSD-3-Clause and additional notices from upstream |
+| Pillow | HPND / historical MIT-CMU terms; verify installed version's notices |
+| PyTorch and torchvision | Upstream individual terms |
+| Transformers, safetensors, huggingface-hub | Upstream individual terms |
+| `facebook/sam-vit-base`, `large`, `huge` | Model-specific upstream licenses; weights are downloaded separately, not distributed here |
 
-**References (checked 2026-11-17):**
-- https://www.riverbankcomputing.com/software/
-- https://pypi.org/project/PyQt6/6.12.0/
-- https://huggingface.co/facebook/sam-vit-base
-- https://huggingface.co/facebook/sam-vit-large
-- https://huggingface.co/facebook/sam-vit-huge
-
-The project does not relicense third-party dependencies or model weights. For a future Windows executable, perform a new binary-distribution notice/SBOM review.
+Source-only publication avoids bundling large third-party binaries, but does not remove the obligation to honor upstream terms. Verify all binary and model license obligations before publishing a standalone EXE or model weights.

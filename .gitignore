@@ -1,4 +1,4 @@
-# Python/IDE environments
+# Python, Qt and local IDE artefacts
 __pycache__/
 .pytest_cache/
 .mypy_cache/
@@ -10,7 +10,7 @@ venv/
 .idea/
 .vscode/
 
-# Credentials and local configuration
+# Secrets, personal config and local credentials
 .env
 .env.*
 *.pem
@@ -20,7 +20,7 @@ venv/
 credentials*.json
 secrets*.json
 
-# Lab data, research photos and confidential project archives
+# Confidential research projects, documents, raw photographs
 *.weldproj
 *.weldproj.bak
 *.weldproj.tmp
@@ -46,7 +46,7 @@ secrets*.json
 *.tar.gz
 *.tgz
 
-# Models, generated outputs and logs
+# Checkpoints, generated outputs and logs
 *.pt
 *.pth
 *.safetensors
@@ -64,5 +64,5 @@ recovery/
 cache/
 output/
 
-# Explicitly approved demo screenshot (other research images stay ignored)
+# Explicitly authorised old demonstration screenshot already in public repo
 !docs/screenshots/weldvision-ai-3.2.jpg

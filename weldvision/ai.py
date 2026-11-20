@@ -1,5 +1,6 @@
 """Izolowany silnik SAM; moduły AI importowane wyłącznie w procesie roboczym."""
 from __future__ import annotations
+from .i18n import tr
 
 import gc
 import json
@@ -46,12 +47,12 @@ def check_ai(device):
     notify('diagnostic', **info)
     if missing:
         raise RuntimeError(
-            'Brakuje pakietów w interpreterze procesu roboczego: ' + ', '.join(missing)
+            tr('Brakuje pakietów w interpreterze procesu roboczego: ') + ', '.join(missing)
             + '\nInterpreter: ' + info['python']
             + '\nUruchom Install_AI_NVIDIA_CUDA.bat w folderze programu.'
         )
     if device == 'cuda' and not info['cuda']:
-        raise RuntimeError('Wybrano CUDA, ale PyTorch nie wykrywa GPU. Sprawdź instalację CUDA/PyTorch.')
+        raise RuntimeError(tr('Wybrano CUDA, ale PyTorch nie wykrywa GPU. Sprawdź instalację CUDA/PyTorch.'))
     return info
 
 
@@ -129,12 +130,16 @@ def run_grabcut_job(job):
             for x,y in p:
                 cv2.circle(segmentation,(int(x),int(y)),4,cv2.GC_FGD,-1)
             if not np.any(segmentation==cv2.GC_FGD) and not np.any(segmentation==cv2.GC_PR_FGD):
-                raise ValueError('GrabCut nie ma obszaru pierwszego planu')
+                raise ValueError(tr('GrabCut wymaga ROI lub znacznika FG wewnątrz spoiny.'))
+            if not np.any(segmentation==cv2.GC_BGD) and not np.any(segmentation==cv2.GC_PR_BGD):
+                raise ValueError(tr('GrabCut potrzebuje próbek tła. Zostaw margines poza ROI lub oznacz BG.'))
             bg=np.zeros((1,65),np.float64)
             fg=np.zeros((1,65),np.float64)
             notify('progress',message=f'GrabCut {order}/{len(tasks)} · {Path(task["image_path"]).name}')
             cv2.grabCut(cut,segmentation,None,bg,fg,5,cv2.GC_INIT_WITH_MASK)
             small=np.where((segmentation==cv2.GC_PR_FGD)|(segmentation==cv2.GC_FGD),255,0).astype(np.uint8)
+            if not np.any(small):
+                raise ValueError(tr('GrabCut nie utworzył maski spoiny. Sprawdź ROI i dodaj FG wewnątrz spoiny.'))
             result=np.zeros((H,W),np.uint8)
             x0,y0,x1,y1=bounds
             result[y0:y1,x0:x1]=small
@@ -162,8 +167,8 @@ def run_job(job_path):
         device = 'cuda' if torch.cuda.is_available() and device_choice != 'cpu' else 'cpu'
         model_id = job.get('model_id','facebook/sam-vit-large')
         if model_id not in ('facebook/sam-vit-base','facebook/sam-vit-large','facebook/sam-vit-huge'):
-            raise ValueError('Nieobsługiwany model SAM')
-        notify('progress', message=f'Ładowanie {model_id} na {device} (tylko jeden model)')
+            raise ValueError(tr('Nieobsługiwany model SAM'))
+        notify('progress', message=tr('Ładowanie {} na {} (tylko jeden model)').format(f'{model_id}', f'{device}'))
         processor = SamProcessor.from_pretrained(model_id)
         if device == 'cuda':
             try:
@@ -188,12 +193,12 @@ def run_job(job_path):
                 pos, neg = task.get('pos', []), task.get('neg', [])
                 roi = task.get('roi')
                 if not roi and not pos:
-                    raise ValueError('Brak ROI i FG')
+                    raise ValueError(tr('Brak ROI i FG'))
                 cropped, p, n, b, bounds = crop_image(img, pos, neg, roi)
                 if roi is not None:
                     notify('progress', message=f'{order}/{len(tasks)} · ROI {cropped.shape[1]}×{cropped.shape[0]} px')
                 else:
-                    notify('progress', message=f'{order}/{len(tasks)} · całe zdjęcie (większa pamięć)')
+                    notify('progress', message=tr('{}/{} · całe zdjęcie (większa pamięć)').format(f'{order}', f'{len(tasks)}'))
                 image = Image.fromarray(cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB))
                 kwargs = {'images':image, 'return_tensors':'pt'}
                 if p or n:
@@ -230,7 +235,7 @@ def run_job(job_path):
                         torch.cuda.empty_cache()
                     except Exception:
                         pass
-                    notify('fatal', error='Brak VRAM podczas analizy. Zmniejsz ROI albo użyj SAM Large.',
+                    notify('fatal', error=tr('Brak VRAM podczas analizy. Zmniejsz ROI albo użyj SAM Large.'),
                            traceback=traceback.format_exc(limit=4))
                     return 2
         notify('finished', processed=count, total=len(tasks))

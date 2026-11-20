@@ -1,7 +1,7 @@
 # Security and data handling
 
-Please do not commit passwords, tokens, API keys, `.env` files, raw research photographs, project archives (`.weldproj`), unreviewed datasets, model weights, or internal laboratory documents. `.gitignore` is only an additional safeguard and does **not** remove sensitive content from files already committed.
+Do not commit credentials, access tokens, `.env` files, private keys, confidential research photographs, original laboratory data, `.weldproj` projects, model checkpoints, or internal documents. The `.gitignore` file does not remove content already present in Git history.
 
-Before making this repository public, verify source-code ownership and third-party licenses; check Git commit history for secrets; inspect installers and downloads; and perform dependency and input-file security reviews. This repository is initially created **private**.
+The 3.5.0 source archive was checked for obvious literal tokens, private-key headers and private system paths, and passed Python syntax compilation. This is **not** a complete security audit. Full GUI tests and CUDA/SAM inference were not reproduced during this independent release preparation.
 
-Please report security problems privately to the repository owner rather than posting exploits or secrets in public issues.
+Do not open untrusted project archives without appropriate resource safeguards. Send security reports privately to the repository maintainer instead of posting exploits or sensitive details publicly.

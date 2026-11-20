@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""WeldVision AI 3.2. Proces izolowany używa *tego samego* sys.executable co GUI."""
+"""WeldVision AI 3.5.0. Proces izolowany używa *tego samego* sys.executable co GUI."""
 from __future__ import annotations
 import os
 import sys
@@ -15,7 +15,7 @@ def main():
         from weldvision.ai import worker_main
         return worker_main(sys.argv[1:])
     if len(sys.argv)>1 and sys.argv[1] == '--version':
-        print('WeldVision AI 3.2')
+        print('WeldVision AI 3.5.0')
         return 0
     from PyQt6.QtWidgets import QApplication
     from weldvision.gui import MainWindow

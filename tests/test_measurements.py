@@ -14,22 +14,22 @@ from weldvision.measurements import measurement_geometry, measurement_mm, valida
 
 def test_throat_is_perpendicular_and_rotation_invariant():
     points = [[0, 0], [0, 100], [100, 0]]
-    start, foot, pixels = measurement_geometry('a', points)
+    start, foot, pixels = measurement_geometry('a_contour', points)
     assert start == (0, 0)
     assert foot == pytest.approx((50, 50))
     assert pixels == pytest.approx(math.sqrt(5000))
     angle = .723
     rotated = [[x*math.cos(angle)-y*math.sin(angle)+200,
                 x*math.sin(angle)+y*math.cos(angle)+150] for x, y in points]
-    assert measurement_geometry('a', rotated)[2] == pytest.approx(pixels)
-    assert measurement_mm({'kind': 'a', 'points': points}, .02) == pytest.approx(math.sqrt(2))
-    assert measurement_mm({'kind': 'a', 'points': points}, None) is None
+    assert measurement_geometry('a_contour', rotated)[2] == pytest.approx(pixels)
+    assert measurement_mm({'kind': 'a_contour', 'points': points}, .02) == pytest.approx(math.sqrt(2))
+    assert measurement_mm({'kind': 'a_contour', 'points': points}, None) is None
 
 
 @pytest.mark.parametrize('kind, points', [
     ('t1', [[2, 4], [2, 4]]),
-    ('a', [[0, 0], [20, 20], [20, 20]]),
-    ('a', [[30, 10], [0, 0], [20, 0]]),
+    ('a_contour', [[0, 0], [20, 20], [20, 20]]),
+    ('a_contour', [[0, 0], [100, 0], [200, 0]]),
     ('t2', [[float('nan'), 0], [10, 0]]),
 ])
 def test_reject_degenerate_geometry(kind, points):
@@ -45,7 +45,7 @@ def test_linear_measurements_saved_and_exported_without_mask(tmp_path):
     sample.cal_points = [[10, 10], [110, 10]]
     sample.recalc_scale()
     sample.measurements = [
-        {'kind': 'a', 'points': [[20, 20], [20, 120], [120, 20]]},
+        {'kind': 'a_contour', 'points': [[20, 20], [20, 120], [120, 20]]},
         {'kind': 't1', 'points': [[200, 20], [200, 60]]},
         {'kind': 't2', 'points': [[220, 20], [250, 60]]},
     ]

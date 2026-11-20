@@ -23,3 +23,18 @@ def test_grabcut_no_ai_environment(tmp_path, capsys):
     assert any(m['kind']=='result' for m in lines)
     mask=from_png((tmp_path/'out'/('a'*32+'.png')).read_bytes(),(H,W))
     assert np.count_nonzero(mask)>1000
+
+
+def test_grabcut_requires_background_when_roi_covers_photo(tmp_path, capsys):
+    file = tmp_path / 'sample.png'
+    image_write(file, np.zeros((100, 140, 3), np.uint8))
+    output = tmp_path / 'out'
+    job = {'mode': 'grabcut', 'tasks': [{'uid': 'b'*32, 'revision': 1,
+           'image_path': str(file), 'roi': [0, 0, 140, 100], 'pos': [[35, 45]]}],
+           'output_dir': str(output)}
+    path = tmp_path / 'job.json'
+    path.write_text(json.dumps(job), encoding='utf8')
+    assert run_job(path) == 0
+    records = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert 'próbek tła' in next(m['error'] for m in records if m['kind'] == 'sample_error')
+    assert not list(output.glob('*.png'))

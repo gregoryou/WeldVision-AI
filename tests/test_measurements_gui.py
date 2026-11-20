@@ -50,7 +50,7 @@ def click(win, x, y, button=Qt.MouseButton.LeftButton):
 
 
 def calibrate(win):
-    win.tabs.setCurrentIndex(2)
+    win.tabs.setCurrentIndex(0)
     QTest.mouseClick(win.calibration_button, Qt.MouseButton.LeftButton)
     assert win.tabs.currentIndex() == 0
     assert win.canvas.mode == ImageCanvas.CAL
@@ -68,6 +68,8 @@ def measure(win, kind, points):
     assert win.canvas.mode == ImageCanvas.MEASURE
     for x, y in points:
         click(win, x, y)
+    if kind=='a_contour':
+        click(win,points[-1][0],points[-1][1],Qt.MouseButton.RightButton)
 
 
 def test_calibrate_measure_navigate_save_and_recalibrate(window, tmp_path):
@@ -76,8 +78,8 @@ def test_calibrate_measure_navigate_save_and_recalibrate(window, tmp_path):
     calibrate(win)
     measure(win, 't1', [(190, 30), (190, 80)])
     measure(win, 't2', [(220, 30), (250, 70)])
-    measure(win, 'a', [(20, 20), (20, 120), (120, 20)])
-    assert win.tabs.currentIndex() == 0
+    measure(win, 'a_contour', [(20, 20), (20, 120), (120, 20)])
+    assert win.tabs.currentIndex() == 4
     assert win.measure_table.rowCount() == 3
     sample = win._sample()
     assert measurement_mm(sample.measurements[0], sample.mm_per_px) == pytest.approx(5)
@@ -112,7 +114,7 @@ def test_delete_undo_redo_and_cancel(window):
     assert not win._sample().measurements
     win.canvas.undo()
     assert len(win._sample().measurements) == 1
-    measure(win, 'a', [(20, 20)])
+    measure(win, 'a_contour', [(20, 20)])
     QTest.keyClick(win, Qt.Key.Key_Escape)
     assert not win.canvas.measure_points
     assert len(win._sample().measurements) == 1
@@ -134,8 +136,73 @@ def test_invalid_points_zoom_pan_and_recalibration_undo(window):
     click(win, 10, 10)
     click(win, 60, 10)
     assert win.measure_table.item(0, 2).text() == '8.000'
-    win.canvas.undo()
-    assert not win.measure_button.isEnabled()
+    # Change of two-point calibration commits atomically, so one undo is enough.
     win.canvas.undo()
     assert win.measure_button.isEnabled()
     assert win.measure_table.item(0, 2).text() == '4.000'
+
+
+def test_grid_calibration_10mm_two_axes_and_roundtrip(window, tmp_path):
+    win=window
+    win.grid_calibration_button.click()
+    assert win.canvas.mode == ImageCanvas.GRID_CAL
+    assert win.tabs.currentIndex()==0
+    click(win,10,20)
+    click(win,110,20)
+    click(win,10,70)
+    s=win._sample()
+    assert len(s.cal_points)==3
+    assert s.mm_per_px == pytest.approx(0.02**.5)
+    assert s.area_per_pixel()==pytest.approx(.02)
+    measure(win,'t1',[(50,20),(50,70)])
+    assert win.measure_table.item(0,2).text()=='10.000'
+    save_project(win.project,tmp_path/'grid.weldproj')
+    p=load_project(tmp_path/'grid.weldproj')
+    try:
+        assert p.samples[0].area_per_pixel()==pytest.approx(.02)
+    finally:
+        p.close()
+
+
+def test_measurement_tab_is_clean_and_reset_is_reversible(window,monkeypatch):
+    from PyQt6.QtWidgets import QMessageBox
+    win=window
+    calibrate(win)
+    mask=np.zeros_like(win.canvas.mask)
+    mask[50:90,70:120]=255
+    win.canvas.mask=mask.copy()
+    win.canvas.changed.emit()
+    old_cal=list(win._sample().cal_points)
+    old_mask=win._sample().mask().copy()
+    win.tabs.setCurrentIndex(4)
+    assert win.canvas.clean_measurement_view
+    assert win.canvas.show_scale_bar
+    assert np.array_equal(win.canvas.mask, old_mask)
+    win.tabs.setCurrentIndex(0)
+    assert not win.canvas.clean_measurement_view
+    monkeypatch.setattr(QMessageBox,'question',lambda *a,**k: QMessageBox.StandardButton.Yes)
+    win._delete_calibration()
+    assert win._sample().mm_per_px is None
+    assert not win.measure_button.isEnabled()
+    assert np.array_equal(win._sample().mask(),old_mask)
+    win.canvas.undo()
+    assert win._sample().cal_points==old_cal
+    assert win._sample().mm_per_px == pytest.approx(.1)
+    assert np.array_equal(win._sample().mask(),old_mask)
+
+
+def test_partial_recalibration_never_changes_old_scale(window):
+    win=window
+    calibrate(win)
+    original=list(win._sample().cal_points)
+    win.calibration_button.click()
+    click(win,30,40)
+    assert win._sample().cal_points==original
+    assert win._sample().mm_per_px == pytest.approx(.1)
+    win.canvas.set_mode(ImageCanvas.PAN)
+    win.grid_calibration_button.click()
+    click(win,60,30)
+    click(win,160,30)
+    assert win._sample().cal_points==original
+    win.canvas.set_mode(ImageCanvas.PAN)
+    assert win._sample().cal_points==original

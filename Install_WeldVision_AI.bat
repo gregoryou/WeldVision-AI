@@ -3,7 +3,7 @@ setlocal
 chcp 65001 >nul
 set "PYTHONUTF8=1"
 echo ============================================================
-echo  WELDVISION AI 3.2 - Instalacja Windows / RTX NVIDIA
+echo  WELDVISION AI 3.5.0 - Instalacja Windows / RTX NVIDIA
  echo ============================================================
 echo.
 echo ETAP 1/2 - biblioteki programu i izolowane srodowisko Python
@@ -18,7 +18,7 @@ echo ETAP 2/2 - AI / NVIDIA CUDA
 call "%~dp0Install_AI_NVIDIA_CUDA.bat"
 if errorlevel 1 (
   echo Instalacja AI nie powiodla sie.
-  echo Program nadal mozna uruchomic i uzywac GrabCut bez modelu SAM.
+  echo Program nadal mozna uruchomic bez SAM i wykonywac pomiary reczne.
   pause
   exit /b 1
 )

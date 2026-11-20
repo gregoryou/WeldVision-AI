@@ -1,5 +1,6 @@
 """WeldVision: model danych, pomiary i bezpieczny zapis projektu (bez Qt)."""
 from __future__ import annotations
+from .i18n import tr
 
 import csv
 import io
@@ -12,6 +13,9 @@ import tempfile
 import uuid
 import zipfile
 from .measurements import measurement_mm, measurement_geometry, validate_measurements
+from .calibration import pixel_to_mm_matrix, pixel_area_mm2
+from .geometry import validate_objects
+from .paths import io_path
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,7 +23,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-SCHEMA_VERSION = 2
+DEFAULT_MODEL = 'facebook/sam-vit-huge'
+SCHEMA_VERSION = 3
 MAX_ITEMS = 1000
 MAX_MEMBER_BYTES = 400 * 1024 * 1024
 STATUS_NEW = "nowa"
@@ -39,7 +44,7 @@ def safe_name(name: str, fallback: str = "probka") -> str:
 
 
 def image_read(path):
-    data = np.fromfile(str(path), np.uint8)
+    data = np.fromfile(io_path(path), np.uint8)
     return cv2.imdecode(data, cv2.IMREAD_COLOR)
 
 
@@ -47,8 +52,8 @@ def image_write(path, img):
     ext = Path(path).suffix.lower() or '.png'
     ok, enc = cv2.imencode(ext, img)
     if not ok:
-        raise OSError(f"Nie można zakodować obrazu {path}")
-    Path(path).write_bytes(enc.tobytes())
+        raise OSError(tr('Nie można zakodować obrazu {}').format(f'{path}'))
+    Path(io_path(path)).write_bytes(enc.tobytes())
 
 
 def png_bytes(img: np.ndarray | None) -> bytes | None:
@@ -57,7 +62,7 @@ def png_bytes(img: np.ndarray | None) -> bytes | None:
     arr = np.where(img > 0, 255, 0).astype(np.uint8)
     ok, enc = cv2.imencode('.png', arr)
     if not ok:
-        raise ValueError("Nie można zakodować maski PNG")
+        raise ValueError(tr('Nie można zakodować maski PNG'))
     return enc.tobytes()
 
 
@@ -66,7 +71,7 @@ def from_png(blob: bytes | None, shape: tuple[int, int]) -> np.ndarray:
         return np.zeros(shape, np.uint8)
     arr = cv2.imdecode(np.frombuffer(blob, np.uint8), cv2.IMREAD_GRAYSCALE)
     if arr is None or arr.shape != shape:
-        raise ValueError(f"Maska ma błędne wymiary (oczekiwano {shape})")
+        raise ValueError(tr('Maska ma błędne wymiary (oczekiwano {})').format(f'{shape}'))
     return np.where(arr > 0, 255, 0).astype(np.uint8)
 
 
@@ -109,15 +114,28 @@ def clean_mask(mask: np.ndarray, min_area: int = 0, close_size: int = 0):
     return m
 
 
-def metrics(mask: np.ndarray | None, mm_per_px: float | None, density: float):
+def metrics(mask: np.ndarray | None, mm_per_px: float | None, density: float,
+            pixel_area: float | None = None):
+    """Pole przekroju, objętość i masa na 1 metr długości.
+
+    N * s² dla skali izotropowej; N * |det(M)| dla siatki 2D.
+    V[cm³/m] = A[mm²] * 1000[mm/m] / 1000[mm³/cm³].
+    Równość LICZBOWA pola i objętości /m jest fizycznie prawidłowa.
+    """
     count = int(np.count_nonzero(mask)) if mask is not None else 0
-    area = count * mm_per_px ** 2 if mm_per_px and mm_per_px > 0 else None
+    if pixel_area is not None:
+        factor = pixel_area if math.isfinite(pixel_area) and pixel_area > 0 else None
+    else:
+        factor = mm_per_px ** 2 if (mm_per_px is not None and math.isfinite(mm_per_px)
+                                     and mm_per_px > 0) else None
+    area = count * factor if factor is not None else None
+    volume_cm3_m = area * 1000.0 / 1000.0 if area is not None else None
     return {
         "px2": count,
         "area_mm2": area,
-        "volume_cm3_m": area,
-        "mass_g_m": area * density if area is not None else None,
-        "mass_kg_m": area * density / 1000 if area is not None else None,
+        "volume_cm3_m": volume_cm3_m,
+        "mass_g_m": volume_cm3_m * density if volume_cm3_m is not None else None,
+        "mass_kg_m": volume_cm3_m * density / 1000 if volume_cm3_m is not None else None,
     }
 
 
@@ -143,10 +161,11 @@ class Sample:
     source_name: str
     original_path: str = ""
     dimensions: tuple[int, int] = (0, 0)  # H, W
-    density: float = 7.85
+    density: float = 2.66
     known_mm: float = 10.0
     cal_points: list = field(default_factory=list)
     measurements: list = field(default_factory=list)
+    geometry_objects: list = field(default_factory=list)
     mm_per_px: float | None = None
     roi_start: tuple | None = None
     roi_end: tuple | None = None
@@ -167,11 +186,11 @@ class Sample:
     redo_history: list = field(default_factory=list, repr=False)
 
     @classmethod
-    def from_file(cls, path, density=7.85):
+    def from_file(cls, path, density=2.66):
         path = Path(path).resolve()
         img = image_read(path)
         if img is None:
-            raise ValueError(f"Nie można otworzyć obrazu: {path}")
+            raise ValueError(tr('Nie można otworzyć obrazu: {}').format(f'{path}'))
         return cls(uuid.uuid4().hex, path.stem, str(path), path.name,
                    str(path), img.shape[:2], density=float(density))
 
@@ -180,16 +199,25 @@ class Sample:
 
     def set_mask(self, kind, img):
         if img.shape[:2] != self.dimensions:
-            raise ValueError("Rozmiar maski nie zgadza się z obrazem")
+            raise ValueError(tr('Rozmiar maski nie zgadza się z obrazem'))
         setattr(self, f"{kind}_png", png_bytes(img))
 
+    def calibration_matrix(self):
+        matrix = pixel_to_mm_matrix(self.cal_points, self.known_mm)
+        if matrix is not None:
+            return matrix
+        # Stare archiwa v1 mogą mieć samą skalę, bez punktów.
+        if not self.cal_points and self.mm_per_px is not None and math.isfinite(self.mm_per_px) and self.mm_per_px > 0:
+            return ((self.mm_per_px, 0.0), (0.0, self.mm_per_px))
+        return None
+
+    def area_per_pixel(self):
+        return pixel_area_mm2(self.calibration_matrix())
+
     def recalc_scale(self):
-        if len(self.cal_points) == 2:
-            p, q = self.cal_points
-            distance = math.hypot(q[0] - p[0], q[1] - p[1])
-            self.mm_per_px = self.known_mm / distance if distance > 0 else None
-        else:
-            self.mm_per_px = None
+        matrix = pixel_to_mm_matrix(self.cal_points, self.known_mm)
+        area = pixel_area_mm2(matrix)
+        self.mm_per_px = math.sqrt(area) if area is not None else None
 
     def roi(self):
         return roi_tuple(self.roi_start, self.roi_end, self.dimensions)
@@ -198,15 +226,21 @@ class Sample:
         return self.roi() is not None or bool(self.fg_png and np.any(self.mask("fg")))
 
     def summary(self):
-        m = metrics(self.mask(), self.mm_per_px, self.density)
+        m = metrics(self.mask(), self.mm_per_px, self.density, self.area_per_pixel())
         return {"id": self.uid, "probka": self.name, "zdjecie": self.source_name,
                 "status": self.state, "metoda": self.method, "model": self.model_id,
                 "piksele": m["px2"], "skala_mm_px": self.mm_per_px,
+                "tryb_kalibracji": ("siatka_2d" if len(self.cal_points) == 3 else
+                                     "odcinek_1d" if len(self.cal_points) == 2 else
+                                     "skala_legacy" if self.mm_per_px else "brak"),
+                "mm2_na_px2": self.area_per_pixel(),
+                "macierz_px_na_mm": (json.dumps(self.calibration_matrix())
+                                     if self.calibration_matrix() is not None else ""),
                 "pole_mm2": m["area_mm2"], "gestosc_g_cm3": self.density,
                 "objetosc_cm3_m": m["volume_cm3_m"], "masa_g_m": m["mass_g_m"],
                 "masa_kg_m": m["mass_kg_m"], "kalibracja_mm": self.known_mm,
                 "data_analizy": self.analyzed_at, "data_zatwierdzenia": self.approved_at,
-                "komentarz": "Masa teoretyczna zaznaczonego przekroju, niekoniecznie uzysk stopiwa"}
+                "komentarz": tr('Masa teoretyczna zaznaczonego przekroju, niekoniecznie uzysk stopiwa')}
 
     def meta(self):
         return {
@@ -214,7 +248,7 @@ class Sample:
             "original_path": self.original_path, "dimensions": list(self.dimensions),
             "density": self.density, "known_mm": self.known_mm,
             "cal_points": self.cal_points, "mm_per_px": self.mm_per_px,
-            "measurements": self.measurements,
+            "measurements": self.measurements, "geometry_objects": self.geometry_objects,
             "roi_start": self.roi_start, "roi_end": self.roi_end,
             "state": self.state, "method": self.method, "model_id": self.model_id,
             "analyzed_at": self.analyzed_at, "approved_at": self.approved_at,
@@ -232,7 +266,9 @@ class Sample:
             dimensions=dims, density=float(md.get("density", 7.85)),
             known_mm=float(md.get("known_mm", 10)),
             cal_points=[list(p) for p in md.get("cal_points", [])],
-            measurements=validate_measurements(md.get('measurements', []), dims),
+            measurements=validate_measurements(md.get('measurements', []), dims,
+                pixel_to_mm_matrix(md.get('cal_points', []), float(md.get('known_mm', 10)))),
+            geometry_objects=validate_objects(md.get("geometry_objects", []), dims),
             mm_per_px=md.get("mm_per_px"),
             roi_start=tuple(md["roi_start"]) if md.get("roi_start") else None,
             roi_end=tuple(md["roi_end"]) if md.get("roi_end") else None,
@@ -241,6 +277,8 @@ class Sample:
             approved_at=md.get("approved_at", ""), min_area=int(md.get("min_area", 0)),
             close_size=int(md.get("close_size", 0)), revision=int(md.get("revision", 0)),
             error=md.get("error", ""), **masks)
+        if sample.cal_points:
+            sample.recalc_scale()
         return sample
 
 
@@ -251,7 +289,7 @@ class Project:
         self.storage = storage  # TemporaryDirectory for extracted project images
         self.dirty = False
         self.active_id = self.samples[0].uid if self.samples else None
-        self.model_id = "facebook/sam-vit-large"
+        self.model_id = DEFAULT_MODEL
         self.device = "auto"
 
     def get(self, uid):
@@ -267,21 +305,9 @@ class Project:
 
 
 FIELDS = ["id", "probka", "zdjecie", "status", "metoda", "model", "piksele", "skala_mm_px",
+          "tryb_kalibracji", "mm2_na_px2", "macierz_px_na_mm",
           "pole_mm2", "gestosc_g_cm3", "objetosc_cm3_m", "masa_g_m", "masa_kg_m",
           "kalibracja_mm", "data_analizy", "data_zatwierdzenia", "komentarz"]
-
-def csv_safe_text(value):
-    """Neutralize spreadsheet formulas in untrusted text, not measurements."""
-    if not isinstance(value, str):
-        return value
-    if re.match(r'^[\x00-\x20]*[=+\-@]', value):
-        return "'" + value
-    return value
-
-
-def csv_safe_summary(sample):
-    return {key: csv_safe_text(value) for key, value in sample.summary().items()}
-
 
 
 def csv_content(project):
@@ -289,13 +315,13 @@ def csv_content(project):
     w = csv.DictWriter(buf, fieldnames=FIELDS, delimiter=';', extrasaction='ignore')
     w.writeheader()
     for sample in project.samples:
-        w.writerow(csv_safe_summary(sample))
+        w.writerow(sample.summary())
     return buf.getvalue().encode('utf-8-sig')
 
 
 def _archive_bytes(info, zf):
     if info.file_size > MAX_MEMBER_BYTES:
-        raise ValueError(f"Element projektu jest zbyt duży: {info.filename}")
+        raise ValueError(tr('Element projektu jest zbyt duży: {}').format(f'{info.filename}'))
     return zf.read(info)
 
 
@@ -315,7 +341,7 @@ def save_project(project: Project, dest, backup=True, mark_clean=True):
                              allowZip64=True) as z:
             for s in project.samples:
                 if not Path(s.image_path).is_file():
-                    raise FileNotFoundError(f"Nie odnaleziono obrazu: {s.image_path}")
+                    raise FileNotFoundError(tr('Nie odnaleziono obrazu: {}').format(f'{s.image_path}'))
                 src = Path(s.image_path)
                 suffix = src.suffix.lower() if src.suffix.lower() in ('.png','.jpg','.jpeg','.tif','.tiff','.bmp') else '.png'
                 image_arc = f"images/{s.uid}{suffix}"
@@ -336,10 +362,10 @@ def save_project(project: Project, dest, backup=True, mark_clean=True):
         with zipfile.ZipFile(tmp_path) as z:
             bad = z.testzip()
             if bad:
-                raise IOError(f"Błąd CRC pliku {bad}")
+                raise IOError(tr('Błąd CRC pliku {}').format(f'{bad}'))
             saved_meta = json.loads(z.read('project.json').decode('utf-8'))
             if len(saved_meta['items']) != len(project.samples):
-                raise IOError("Niepełna lista próbek po zapisie")
+                raise IOError(tr('Niepełna lista próbek po zapisie'))
         if backup and dest.exists():
             backup_path = dest.with_suffix(dest.suffix + '.bak')
             shutil.copy2(dest, backup_path)
@@ -357,29 +383,29 @@ def save_project(project: Project, dest, backup=True, mark_clean=True):
 def _zip_checked(z):
     names = z.namelist()
     if 'project.json' not in names:
-        raise ValueError('Projekt nie zawiera project.json')
+        raise ValueError(tr('Projekt nie zawiera project.json'))
     if len(names) != len(set(names)):
-        raise ValueError('Projekt zawiera zduplikowane nazwy plików')
+        raise ValueError(tr('Projekt zawiera zduplikowane nazwy plików'))
     if len(names) > MAX_ITEMS * 8 + 12:
-        raise ValueError('Zbyt wiele elementów w archiwum')
+        raise ValueError(tr('Zbyt wiele elementów w archiwum'))
     total_size = 0
     for member in z.infolist():
         total_size += member.file_size
         if member.file_size > MAX_MEMBER_BYTES:
-            raise ValueError(f'Zbyt duży plik w projekcie: {member.filename}')
+            raise ValueError(tr('Zbyt duży plik w projekcie: {}').format(f'{member.filename}'))
     if total_size > 10 * 1024**3:
         raise ValueError('Archiwum przekracza limit 10 GB danych po rozpakowaniu')
     if z.testzip() is not None:
-        raise ValueError('Błędna suma kontrolna ZIP')
+        raise ValueError(tr('Błędna suma kontrolna ZIP'))
     md = json.loads(z.read('project.json').decode('utf-8'))
     items = md.get('items', [])
     if not isinstance(items, list) or not (0 <= len(items) <= MAX_ITEMS):
-        raise ValueError('Nieprawidłowa lista próbek')
+        raise ValueError(tr('Nieprawidłowa lista próbek'))
     return md
 
 
 def load_project(path):
-    """Czyta format v2 oraz archiwa legacy v1. Stan UI zmienia się dopiero po sukcesie."""
+    """Czyta formaty v1, v2 i v3. Stan UI zmienia się dopiero po sukcesie."""
     path = Path(path).resolve()
     tmp = tempfile.TemporaryDirectory(prefix='weldvision_project_')
     samples = []
@@ -392,14 +418,14 @@ def load_project(path):
                     paths = info.get('files', {})
                     image_arc = paths.get('image')
                     if not image_arc or image_arc not in z.namelist():
-                        raise ValueError(f'Brak obrazu próbki {i+1}')
+                        raise ValueError(tr('Brak obrazu próbki {}').format(f'{i + 1}'))
                     uid = uuid.uuid4().hex
                     ext = Path(image_arc).suffix or '.png'
                     dest = Path(tmp.name) / f'{uid}{ext}'
                     dest.write_bytes(_archive_bytes(z.getinfo(image_arc), z))
                     image = image_read(dest)
                     if image is None:
-                        raise ValueError(f'Uszkodzony obraz próbki {i+1}')
+                        raise ValueError(tr('Uszkodzony obraz próbki {}').format(f'{i + 1}'))
                     shape = image.shape[:2]
                     masks = {}
                     for key, legacy_name in (("mask", "mask"), ("fg", "fg"), ("bg", "bg")):
@@ -418,19 +444,19 @@ def load_project(path):
                                roi_end=tuple(info['roi_end']) if info.get('roi_end') else None,
                                state=STATUS_REVIEW if masks.get('mask_png') else STATUS_NEW, **masks)
                 else:
-                    if md.get('schema') != SCHEMA_VERSION:
-                        raise ValueError('Nieznana wersja formatu projektu')
+                    if md.get('schema') not in (2, SCHEMA_VERSION):
+                        raise ValueError(tr('Nieznana wersja formatu projektu'))
                     uid = info['uid']
                     if not re.fullmatch(r'[a-fA-F0-9]{32}', uid):
-                        raise ValueError('Nieprawidłowy identyfikator próbki')
+                        raise ValueError(tr('Nieprawidłowy identyfikator próbki'))
                     image_arc = info['image_file']
                     if image_arc not in z.namelist():
-                        raise ValueError(f'Brak obrazu {info.get("name", i)}')
+                        raise ValueError(tr('Brak obrazu {}').format(f"{info.get('name', i)}"))
                     dest = Path(tmp.name) / f'{uid}{Path(image_arc).suffix}'
                     dest.write_bytes(_archive_bytes(z.getinfo(image_arc), z))
                     image = image_read(dest)
                     if image is None:
-                        raise ValueError('Uszkodzony obraz')
+                        raise ValueError(tr('Uszkodzony obraz'))
                     if tuple(info['dimensions']) != image.shape[:2]:
                         raise ValueError('Niezgodne wymiary obrazu')
                     masks = {}
@@ -443,15 +469,15 @@ def load_project(path):
                     s = Sample.from_meta(info, dest, masks)
                 samples.append(s)
         if not samples:
-            raise ValueError('Projekt nie zawiera próbek')
+            raise ValueError(tr('Projekt nie zawiera próbek'))
         ids = [s.uid for s in samples]
         if len(set(ids)) != len(ids):
-            raise ValueError('Zduplikowane identyfikatory próbek')
+            raise ValueError(tr('Zduplikowane identyfikatory próbek'))
         proj = Project(samples, path=str(path), storage=tmp)
         proj.active_id = md.get('active_id', samples[0].uid) if not legacy else samples[max(0, min(int(md.get('current_index', 0)), len(samples)-1))].uid
         if proj.active_id not in ids:
             proj.active_id = samples[0].uid
-        proj.model_id = md.get('model_id', 'facebook/sam-vit-large')
+        proj.model_id = md.get('model_id', DEFAULT_MODEL)
         proj.device = md.get('device', 'auto')
         return proj
     except Exception:
@@ -459,7 +485,8 @@ def load_project(path):
         raise
 
 
-def render_overlay(img, mask, mm_per_px, density, sample_name="", annotate=True, measurements=None):
+def render_overlay(img, mask, mm_per_px, density, sample_name="", annotate=True,
+                   measurements=None, calibration_matrix=None):
     out = img.copy()
     if mask is not None and np.any(mask):
         use = mask > 0
@@ -470,22 +497,25 @@ def render_overlay(img, mask, mm_per_px, density, sample_name="", annotate=True,
                                        cv2.CHAIN_APPROX_SIMPLE)
         cv2.drawContours(out, contours, -1, (0, 255, 255), 2)
     if annotate:
-        m = metrics(mask, mm_per_px, density)
+        m = metrics(mask, mm_per_px, density, pixel_area_mm2(calibration_matrix))
         label = f'{sample_name}: A={m["area_mm2"]:.3f} mm2' if m['area_mm2'] is not None else f'{sample_name}: bez kalibracji'
         cv2.rectangle(out, (0, 0), (min(out.shape[1], max(400,len(label)*14)), 56), (22,22,22), -1)
         cv2.putText(out, label[:90], (14,35), cv2.FONT_HERSHEY_SIMPLEX, .7,
                     (255,255,255), 2, cv2.LINE_AA)
     for index, item in enumerate(measurements or []):
-        start, end, _ = measurement_geometry(item['kind'], item['points'])
+        try:
+            start, end, _ = measurement_geometry(item['kind'], item['points'], calibration_matrix)
+            value = measurement_mm(item, mm_per_px, calibration_matrix)
+        except ValueError:
+            continue
         to_int = lambda pt: tuple(int(round(v)) for v in pt)
         cv2.line(out, to_int(start), to_int(end), (255, 235, 70), 2, cv2.LINE_AA)
         for point in item['points']:
             cv2.circle(out, to_int(point), 5, (255, 235, 70), 2, cv2.LINE_AA)
-        if item['kind'] == 'a':
-            cv2.line(out, to_int(item['points'][1]), to_int(item['points'][2]),
-                     (255, 235, 70), 1, cv2.LINE_AA)
-        value = measurement_mm(item, mm_per_px)
-        label = f'{index+1}. {item["kind"]} = {value:.3f} mm' if value is not None else f'{index+1}. bez kalibracji'
+        if item['kind'] in ('a','a_contour'):
+            for p1,p2 in zip(item['points'][1:-1], item['points'][2:]):
+                cv2.line(out, to_int(p1), to_int(p2),(255,235,70),1,cv2.LINE_AA)
+        label = f'{index+1}. {item["kind"]} = {value:.3f} mm' if value is not None else tr('{}. powtorz / brak skali').format(f'{index + 1}')
         size, baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, .6, 2)
         x = max(0, min(out.shape[1]-size[0]-6, int((start[0]+end[0])/2)+8))
         y = max(size[1]+4, min(out.shape[0]-baseline-4, int((start[1]+end[1])/2)-8))
@@ -499,12 +529,18 @@ def measurements_csv(samples):
     buffer = io.StringIO()
     writer = csv.writer(buffer, delimiter=';')
     writer.writerow(['id_probki', 'probka', 'nr_pomiaru', 'rodzaj', 'wymiar_mm',
-                     'skala_mm_px', 'punkty_px'])
+                     'skala_mm_px', 'punkty_px', 'tryb_kalibracji', 'macierz_px_na_mm'])
     for sample in samples:
         for index, item in enumerate(sample.measurements):
-            writer.writerow([sample.uid, csv_safe_text(sample.name), index+1, item['kind'],
-                             measurement_mm(item, sample.mm_per_px), sample.mm_per_px,
-                             json.dumps(item['points'], ensure_ascii=False)])
+            try:
+                value = measurement_mm(item, sample.mm_per_px, sample.calibration_matrix())
+            except ValueError:
+                value = None
+            writer.writerow([sample.uid, sample.name, index+1, item['kind'],
+                             value, sample.mm_per_px,
+                             json.dumps(item['points'], ensure_ascii=False),
+                             ('siatka_2d' if len(sample.cal_points) == 3 else 'odcinek_1d'),
+                             json.dumps(sample.calibration_matrix())])
     return buffer.getvalue().encode('utf-8-sig')
 
 
@@ -521,7 +557,7 @@ def export_results(project, destination, current_only=None):
     out.mkdir()
     samples = [project.get(current_only)] if current_only else project.samples
     if any(s is None for s in samples):
-        raise ValueError('Nie wybrano próbki')
+        raise ValueError(tr('Nie wybrano próbki'))
     stems = export_stems(samples)
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=FIELDS, delimiter=';')
@@ -538,8 +574,17 @@ def export_results(project, destination, current_only=None):
         if sample.raw_png:
             (out / f'{stem}_maska_AI_surowa.png').write_bytes(sample.raw_png)
         image_write(out / f'{stem}_wynik.png', render_overlay(img, sample.mask(), sample.mm_per_px,
-                    sample.density, sample.name, measurements=sample.measurements))
-        writer.writerow(csv_safe_summary(sample))
+                    sample.density, sample.name, measurements=sample.measurements,
+                    calibration_matrix=sample.calibration_matrix()))
+        writer.writerow(sample.summary())
     (out / 'wyniki_zbiorcze.csv').write_bytes(buffer.getvalue().encode('utf-8-sig'))
     (out / 'pomiary_liniowe.csv').write_bytes(measurements_csv(samples))
+    from .excel_export import export_xlsx
+    export_xlsx(out / 'wyniki_zbiorcze.xlsx',samples,FIELDS)
+    # Also export a source photograph with dimension marks but with NO mask,
+    # colored segmentation or calibration markers (separate from *_wynik.png).
+    from .photo_annotations import export_photo
+    for sample, stem in zip(samples, stems):
+        if sample.measurements or sample.geometry_objects:
+            export_photo(sample, out / f'{stem}_pomiary_czyste.png')
     return out
